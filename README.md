@@ -1,4 +1,4 @@
-# 李吉林 | Business & Data Analytics
+#  | Business & Data Analytics
 
 工商管理专业本科生
 
