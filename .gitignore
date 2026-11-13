@@ -20,6 +20,10 @@ venv/
 data/*.csv
 data/*.xlsx
 
+# Except: published portfolio files (de-identified)
+!03_customer-analytics/customer-churn/data/supermarket_members.csv
+!03_customer-analytics/customer-churn/notebooks/customer_churn_analysis.ipynb
+
 # OS / editor
 .DS_Store
 Thumbs.db
