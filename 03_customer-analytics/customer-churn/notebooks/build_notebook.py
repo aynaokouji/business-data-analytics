@@ -114,16 +114,61 @@ ax.set_xlabel("特征重要性"); ax.set_title("最重要的流失信号")
 plt.tight_layout(); plt.savefig("../outputs/feature_importance.png", dpi=150); plt.close()
 print(imp.sort_values(ascending=False).round(3).to_string())""")
 
-md("""## 4. 商业结论（真实数据下的发现）
+md("## 4. RFM 分层：谁最值得挽留？")
+code("""def qscore(s, ascending=True):
+    q = pd.qcut(s, 5, labels=False, duplicates="drop")
+    return q + 1 if ascending else 5 - q
+
+df["R"] = qscore(df["recency_days"], ascending=False)  # 5 = 最近消费
+df["F"] = qscore(df["monthly_visits"], ascending=True)
+df["M"] = qscore(df["monthly_spend"], ascending=True)
+
+def rfm_segment(r):
+    R, F, M = r["R"], r["F"], r["M"]
+    if R >= 4 and M >= 4 and F >= 3: return "High-value loyal"
+    if R >= 4: return "Recently active"
+    if R <= 2 and M >= 4 and F >= 3: return "Dormant high-value"
+    if R <= 2 and M <= 2 and F <= 2: return "Churn risk"
+    if R <= 2: return "Dormant average"
+    if r["membership_months"] <= 12 and M <= 2: return "New / low spend"
+    return "Average"
+
+df["segment"] = df.apply(rfm_segment, axis=1)
+order = ["High-value loyal", "Recently active", "Average", "New / low spend",
+         "Dormant high-value", "Dormant average", "Churn risk"]
+rfm = (df.groupby("segment")
+         .agg(n=("is_churn", "size"), churn_rate=("is_churn", "mean"),
+              recency_days=("recency_days", "mean"),
+              monthly_spend=("monthly_spend", "mean"),
+              monthly_visits=("monthly_visits", "mean"))
+         .reindex(order))
+print(rfm.round(3).to_string())
+print("total n:", int(rfm["n"].sum()))""")
+
+code("""colors = ["#1b5e20", "#66bb6a", "#9e9e9e", "#ffa726", "#fb8c00", "#ef5350", "#b71c1c"]
+fig, ax = plt.subplots(figsize=(8, 4.5))
+vals = (rfm["churn_rate"] * 100).reindex(order)
+ax.bar(order, vals, color=colors)
+ax.set_ylabel("Churn rate (%)")
+ax.set_title("Churn rate by RFM segment (n=5000)")
+ax.set_ylim(0, 70)
+for i, (v, n) in enumerate(zip(vals, rfm["n"].reindex(order))):
+    ax.text(i, v + 1.5, f"{v:.0f}%  (n={n})", ha="center", fontsize=9)
+plt.xticks(rotation=18, ha="right")
+plt.tight_layout(); plt.savefig("../outputs/rfm_churn_by_segment.png", dpi=150); plt.close()
+print("saved outputs/rfm_churn_by_segment.png")""")
+
+md("""## 5. 商业结论（真实数据下的发现）
 
 - **先看“最近消费天数”**：≤7 天未到店的会员流失率只有 2.0%，31–60 天为 2.9%，61–90 天 4.8%，91–180 天 10.2%，>180 天升到 32.9%——沉默越久，挽回越难，干预窗口在 90–180 天。
 - **模型表现**：按 F1 选出的最优树是深度 6（测试集 n=1250：准确率 0.780、精确率 0.472、召回率 0.836、F1 0.603、AUC 0.873；混淆矩阵 [[766, 234], [41, 209]]）。比合成数据版的最优深度 2 更深，说明真实数据里的流失模式更复杂。树的第一条分裂就是最近消费 ≤196.5 天，特征重要性：最近消费天数 0.490、月均消费 0.222、年龄 0.187，三者占了近九成。
 - **流失会员画像**：平均 38.0 岁（留存组 48.8 岁）、月均消费 263 元（留存组 541 元）、最近消费 265 天（留存组 163 天）。普通等级会员流失率 27.2%，高于金卡 13.0% 和钻石 11.0%，但树里等级本身几乎不起直接作用——等级差异主要由消费和沉默时长解释，不要只按等级发券。
+- **RFM 分层**：沉睡高价值 277 人（流失率 13%，月均消费 897 元）是最值得挽留的一组；沉睡三组共 1998 人（占 40%），其中流失风险 509 人流失率 58%、月均消费仅 122 元，基本已经流失；高价值忠诚 270 人流失率只有 1%，不用打扰。
 - **建议动作**（按优先级）：
   1. 对 90–180 天未到店的会员定向推送“回归券 + 新品试吃”，在流失前触达；
-  2. 对普通等级、低消费的年轻会员做等级权益提醒和升级激励，重点是把月均消费做起来，而不是只发通用券；
+  2. 对沉睡高价值 277 人做回归券加专属权益的定向挽留，对普通等级、低消费的年轻会员做等级权益提醒和升级激励，重点是把月均消费做起来，而不是只发通用券；
   3. 对月均到店次数下降（流失组 2.6 次 vs 留存组 3.1 次）且沉默时间拉长的会员做客服回访，先解决体验问题再谈促销。
-- **下一步**：补充 RFM 分层和挽留活动的 A/B 效果评估；`estimated_annual_spend`（预估年消费额）与月均消费几乎不相关（r≈0.00），流失组与留存组均值几乎相同（25203 元 vs 25466 元），未入模，建议核查该字段的口径。
+- **下一步**：对沉睡高价值 277 人做挽留活动的 A/B 效果评估；`estimated_annual_spend`（预估年消费额）已定性为口径存疑并剔除（与月均消费 r=0.0027；年消费额 / 12 再除以月均消费，中位数 5.56 倍、最大值近 6 万倍），不再跟进。
 """)
 
 nb["cells"] = cells
