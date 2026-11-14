@@ -78,6 +78,12 @@
 
 对抖音企业号评论数据进行清洗、情感分析，比较不同内容策略的用户反馈。
 
+### 🛍️ 2026 Double 11 E-commerce Review
+
+2026年双11电商复盘
+
+用星图数据等公开数据复盘2026年双11：全网 GMV 17,764 亿元、增速放缓至 4.8%，直播电商增长 54.6%、AI 购物助手全面普及。
+
 ---
 
 ## 📚 Research
@@ -103,7 +109,7 @@ GitHub: https://github.com/aynaokouji/business-data-analytics
 ## 🗂 仓库结构
 
 - `01_python-basics/` — Python 基础练习
-- `02_marketing-analytics/` — 市场营销分析：咖啡定价 PSM、抖音内容分析、高校品牌分析
+- `02_marketing-analytics/` — 市场营销分析：咖啡定价 PSM、抖音内容分析、高校品牌分析、2026年双11复盘
 - `03_customer-analytics/` — 客户分析：会员流失、用户画像
 - `04_machine-learning/` — 机器学习：决策树、逻辑回归
 - `05_business-research/` — 商业研究：数字化转型、ESG、消费者研究
